@@ -53,24 +53,23 @@ class FileHandler: NSObject {
                 var idiom = "iphone"
                 var scale = "1x"
                 
+                var makeIPhone3X = false
+
                 switch checkSize( src ) {
                 case "phone":
                     file_name_incrementor = "-1"
-                    print(" test ")
                 case "phonehd":
                     file_name_incrementor = "-2"
                     scale = "2x"
-                    print(" test ")
                 case "tablet":
-                    file_name_incrementor = "-3"
-                    idiom = "ipad"
-                    scale = "1x"
-                    print(" test ")
-                case "tablethd":
                     file_name_incrementor = "-4"
                     idiom = "ipad"
+                    scale = "1x"
+                case "tablethd":
+                    file_name_incrementor = "-5"
+                    idiom = "ipad"
                     scale = "2x"
-                    print(" test ")
+                    makeIPhone3X = true
                 default:
                     print(" UNKNOWN IMAGE SIZE?? __  ")
                     break
@@ -101,6 +100,25 @@ class FileHandler: NSObject {
                     print(" create new key element ")
                     imageFilesToSave[name_without_extension!] = [newFileData]
                 }
+                
+                
+                if( makeIPhone3X ){
+                    numberOfFilesToMove += 1
+                    let output3X = name_without_extension! + "-3" + "." + fileExtension!
+                    let dest3X = destinationForFiles + "\(foldername)/\(output3X)"
+                    let fileDataFor3X:Dictionary<String,String> = [
+                        "src":src,
+                        "dest":dest3X,
+                        "foldername":foldername,
+                        "output_name":output3X,
+                        "idiom":"iphone",
+                        "scale":"3x"
+                    ]
+                    var temp_array = imageFilesToSave[name_without_extension!]
+                    temp_array?.append( fileDataFor3X )
+                    imageFilesToSave[name_without_extension!] = temp_array
+                }
+                
             }
         }
         self.delegate.collectedAllFileData()
@@ -113,7 +131,6 @@ class FileHandler: NSObject {
     }
     
     func createJSON(){
-        print( " ---- LETS createJSON ---- SETUP " )
         let json_file_name = "Contents.json"
         for ( key , value ) in imageFilesToSave {
             var json_for_file = Dictionary< String , AnyObject >()
@@ -168,7 +185,6 @@ class FileHandler: NSObject {
             print("File already exists")
             return true
         }
-        return false
     }
     
     func createDirAtPath( path:String ) ->Bool {
@@ -183,7 +199,6 @@ class FileHandler: NSObject {
         } else {
             return true
         }
-        return false
     }
    
     func checkSize( src_file_path:String ) -> String {
@@ -202,7 +217,6 @@ class FileHandler: NSObject {
     //MARK:: COPYING FILES - no convert
     func copyFiles(){
         for (key,fileInfo) in imageFilesToSave {
-            let foldername = "\(key).imageset"
             for image_data in fileInfo {
                 let source_file = image_data["src"]
                 let destination = image_data["dest"]
@@ -213,8 +227,6 @@ class FileHandler: NSObject {
     }
     
     func copyFile( src:String , dest:String ){
-        print( " copyFile \( src ) " )
-        
         let fileManager = NSFileManager.defaultManager()
         if( shouldOverwrite ){
             if( fileManager.fileExistsAtPath(dest) ){
@@ -226,28 +238,26 @@ class FileHandler: NSObject {
             }
         }
 
-            if( !fileManager.fileExistsAtPath(dest) ){
-                var error: NSError?
-                do {
-                    try fileManager.copyItemAtPath(src, toPath: dest)
-                    self.numberOfFilesMoved += 1
-                } catch let error1 as NSError {
-                    error = error1
-                    self.numberOfFilesMovedWithError += 1
-                    print("Copy failed with error: \(error!.localizedDescription)")
-                    self.errorCopies.append(dest)
-                } catch {
-                    fatalError()
-                }
-            } else {
-                print(" File does exist ")
+        if( !fileManager.fileExistsAtPath(dest) ){
+            var error: NSError?
+            do {
+                try fileManager.copyItemAtPath(src, toPath: dest)
+                self.numberOfFilesMoved += 1
+            } catch let error1 as NSError {
+                error = error1
+                self.numberOfFilesMovedWithError += 1
+                print("Copy failed with error: \(error!.localizedDescription)")
+                self.errorCopies.append(dest)
+            } catch {
+                fatalError()
             }
-            
-            dispatch_async(dispatch_get_main_queue()) {
-                if( self.numberOfFilesToMove == (self.numberOfFilesMovedWithError + self.numberOfFilesMoved ) ){
-                    self.delegate.completedMovingFiles()
-                }
-            }
+        } else {
+            print(" File does exist ")
+        }
+        
+        if( self.numberOfFilesToMove == (self.numberOfFilesMovedWithError + self.numberOfFilesMoved ) ){
+            self.delegate.completedMovingFiles()
+        }
     }
     
     
